@@ -7,28 +7,29 @@ fn main() {
         .expect("Please provide a MAC address as argument");
     const URL: &str = "http://dhcp.schule.local/cgi-bin/mypie.cgi?command=WLAN+Devices";
 
-    // Use curl to perform the HTTP GET request.
-    let output = Command::new("curl")
-        .arg("-s")
-        .arg(URL)
-        .output()
-        .expect("Failed to execute curl");
-
-    let response_text = String::from_utf8_lossy(&output.stdout);
+    // Use reqwest for HTTP request
+    let response_text = reqwest::blocking::get(URL)
+        .expect("Failed to make request")
+        .text()
+        .expect("Failed to get response text");
 
     if response_text.contains(&mac) {
         if let Some(index) = response_text.find(&mac) {
-            // Split by MAC, then by "|" to obtain the IP address.
+            // Split by MAC, then by "|" to obtain the IP address
             let before_mac = &response_text[..index];
             let parts: Vec<&str> = before_mac.split('|').collect();
             if parts.len() >= 2 {
                 let ip = parts[parts.len() - 2].trim();
-                // Execute the SSH command.
+                // print the IP address
+                println!("Found pi at {}", ip);
+                // Execute the SSH command
                 Command::new("ssh")
                     .arg(format!("pi@{}", ip))
                     .status()
                     .expect("Failed to execute ssh");
             }
         }
+    } else {
+        eprintln!("MAC address not found in response");
     }
 }
